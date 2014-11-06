@@ -1,0 +1,91 @@
+class java-env {
+
+
+#This Sets the timezone to IST
+
+exec {'tz-set':
+   command => '/usr/bin/timedatectl set-timezone Asia/Kolkata'
+     }
+
+
+#This Creates a user jersey
+
+user { "jersey":
+  ensure => present,
+     }
+
+#This Creates a group serviceusrgroup
+
+group { "servicesusrgroup":
+     ensure => present,
+      }
+
+#This creates a files & directory 
+#Assigns owner as Jersey
+#Assigns group as servicesusrgroup
+
+file {
+[ "/usrdata/archive" ] :
+
+          owner => "jersey",
+          group => "servicesusrgroup",
+          ensure => "directory",
+            
+     }
+#This installs jdk 7u55 tarball onto Archive directory
+#This file is imported from the DevOps Private REPO server
+#Incase it doesn't work for you, change the path to install your tarball! 
+exec { 'Install-jdk' :
+        path => "/usrdata/archive",
+        command => "/usr/bin/wget http://10.135.80.168/private_repo/PRIVATE_REPO/JDK_7u55/jdk-7u55-linux-x64.gz"
+     }
+
+#This creates files & directory
+#Assigns owner as Jersey
+#Assigns group as servicesusrgroup
+
+file {
+
+[ "/usrdata/apps", "/usrdata/apps/java" ]:
+    
+    owner => "jersey",
+    group => "servicesusrgroup",  
+    ensure => "directory",
+     } 
+
+#This will copy jdk tarball onto following path 
+exec { 'cp-tarball' :
+        command => "/bin/cp /usrdata/archive/jdk-7u55-linux-x64.gz /usrdata/apps/java/",
+      }
+#This will Decompress the jdk file
+exec { 'untar-jdk' :
+        #path => "/usrdata/apps/java/",
+        command => "/bin/tar -xvzf /usrdata/apps/java/jdk-7u55-linux-x64.gz"
+     }
+
+file { 
+[ "/usr/bin/java java", "/usr/bin/keytool keytool" ]:
+    ensure => "directory",
+     }
+
+file {
+         [ "/usr/bin/rmiregistry rmiregistry" ] :
+           ensure => "directory",
+     }
+exec { 'config' :
+     path => "/usrdata/apps/java/", 
+    command => "/usr/bin/update-alternatives --install /usr/bin/java java /usrdata/apps/java/jdk1.7.0_55/bin/java 100 --slave /usr/bin/keytool keytool /usrdata/apps/java/jdk1.7.0_55/bin/keytool --slave /usr/bin/rmiregistry rmiregistry /usrdata/apps/java/jdk1.7.0_55/bin/rmiregistry"
+   }
+
+exec { 'config2' :
+      command => "/usr/bin/update-alternatives --install /usr/bin/javac javac /usrdata/apps/java/jdk1.7.0_55/bin/javac 100 --slave /usr/bin/jar jar /usrdata/apps/java/jdk1.7.0_55/bin/jar --slave /usr/bin/rmic rmic /usrdata/apps/java/jdk1.7.0_55/bin/rmic"
+
+     }
+file { "/etc/profile.d/setjvmparams.sh" :
+      # owner => root,
+      # group => root,
+      mode => "755",
+       source => "puppet:///modules/java-env/setjvmparams.sh"
+     }
+
+}
